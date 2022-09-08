@@ -21,15 +21,15 @@ Practical 00
 
 2. Count word final consonant sequences
 
-    sed ‘s/[^a-zA-Z]\+/\n/g’ < wiki.txt| rev | sed ‘s[AEIOUaeiou][A-Za-z]*//g’ | rev | sort -r | uniq -c > final-consonants.hist
-
-        rev will reverse the word
+    sed 's/[^a-zA-Z]\+/\n/g' < wiki.txt| rev | sed 's[AEIOUaeiou][A-Za-z]*//g' | rev | sort -r | uniq -c > final-consonants.hist
+    
+    - rev: will reverse the word
 
 
 
 
 Note:
   - Wiki Corpus Extracted from jvwiki-20220901-pages-articles.xml.bz2
-  - To take an input file (wiki.txt for out case): < 
-  - To store output in a file (initial-consonants.hist and final-consonants.hist): >
+  - To take an input file (wiki.txt for our case): < 
+  - To store output in a file (like initial-consonants.hist and final-consonants.hist): >
   - To connect the output of one program to the input of the next: | 

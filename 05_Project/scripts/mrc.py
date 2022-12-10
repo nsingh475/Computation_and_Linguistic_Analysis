@@ -1,6 +1,10 @@
 import sys
-from google.colab import files
 mode = sys.argv[1] ## getting argument from commandline
+
+try:
+    load_mdl_flag = sys.argv[2]
+except:
+    load_mdl_flag = 'False' ## Flag to enable loading of a model from local
 
 from library.mrc_bert import *
 
@@ -27,6 +31,7 @@ freeze_layer_count = 439
 lr=5e-5 ## learning rate
 mdl = None
 
+
 for epoch in range(num_epochs):
     print(f'------ Epoch {epoch+1} ------')
     for chunk in range(num_chunks):
@@ -40,10 +45,8 @@ for epoch in range(num_epochs):
             batch_loader.append(loader)
 
         if mode == 'train':  ## training BERT based MRC
-            BERT_MRC_obj = Train_BERT_MRC(model_path, batch_loader, freeze_layer_count, model_name, save_model_name, lr, iterations_before_saving_model, mdl)
+            BERT_MRC_obj = Train_BERT_MRC(model_path, batch_loader, freeze_layer_count, model_name, save_model_name, lr, iterations_before_saving_model, mdl, load_mdl_flag)
             mdl, out_model = BERT_MRC_obj.run()
-            ## dowload mdl in local
-            files.download(model_path+save_model_name)
         else:  ## evaluating / testing MRC
-            BERT_MRC_obj = Evaluate_BERT_MRC(model_path, save_model_name, batch_loader)
-            accuracy ,eval_data = BERT_MRC_obj.run()
+            BERT_MRC_obj = Evaluate_BERT_MRC(out_path, model_path, save_model_name, batch_loader)
+            result = BERT_MRC_obj.run()

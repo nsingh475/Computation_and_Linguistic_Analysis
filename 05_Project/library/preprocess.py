@@ -102,16 +102,20 @@ class Generate_BIO_labels():
 
             def get_ind(word, nlq):
                 start_ind = nlq.index(word)
-                end_ind = start_ind + len(word)
+                end_ind = start_ind + len(word) #-1
                 return start_ind, end_ind
 
 
             value_list = []
             for pos, label in enumerate(bio):
-                if label in ['B', 'I']:
+                if label == 'B':
                     word = nlq_tok[pos]
                     start_ind, end_index = get_ind(word, nlq)
                     value_list.append((start_ind, end_index, label))
+                elif label == 'I':
+                    word = nlq_tok[pos]
+                    shift = end_index + 1
+                    start_ind, end_index = get_ind(word, nlq[shift:])
 
             return (nlq, {'entities': value_list})    
         

@@ -130,7 +130,7 @@ class Train_BERT_MRC():
 
     """Train model to learn to extract answer span from the context"""
     
-    def __init__(self, out_path, batch_loader, freeze_layer_count, model_name, save_model_name, lr, iterations_before_saving_model, mdl):
+    def __init__(self, out_path, batch_loader, freeze_layer_count, model_name, save_model_name, lr, iterations_before_saving_model, mdl, load_mdl_flag):
         super().__init__()
         self.out_path = out_path
         self.batch_loader = batch_loader
@@ -140,6 +140,7 @@ class Train_BERT_MRC():
         self.save_model_name = save_model_name
         self.iterations_before_saving_model = iterations_before_saving_model
         self.mdl = mdl
+        self.load_mdl_flag = load_mdl_flag
 
 
         
@@ -159,20 +160,26 @@ class Train_BERT_MRC():
         
         ## ------------------------------------- Main Execution ------------------------------------------------------------##
         
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
         ## initializing model
-        if self.mdl == None:
-            model = initialize_model(self.model_name, self.freeze_layer_count)
+        if self.load_mdl_flag == 'True':
+            print('Loading the pre-saved model')
+            model = torch.load(self.out_path+self.save_model_name)
+        elif self.mdl == None:
+            print('Initializing model')
+            model = initialize_model(self.model_name, self.freeze_layer_count)    
         else:
+            print('Loading model passed as parameter')
             model = self.mdl
         
-        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         model.to(device)
         model.train()
         optim = AdamW(model.parameters(), self.lr)
         
         ## training
-        outputs_model = []
         print('Starting Training ...')
+        outputs_model = []
         for i , loader in enumerate(self.batch_loader):
             print(f'Processing batch {i+1}...')
             for batch in loader: 
@@ -191,7 +198,7 @@ class Train_BERT_MRC():
                 optim.step()
 
             ## save intermediate model after processing n batches 
-            if (i==0) or ((i+1)%self.iterations_before_saving_model==0):
+            if ((i+1)%self.iterations_before_saving_model==0) and (i+1 != len(self.batch_loader)): 
                 print(f'Saving intermediate BERT after processing {i+1} loaders') 
                 torch.save(model, self.out_path+f'intermediate-bert')    
 
@@ -203,8 +210,9 @@ class Train_BERT_MRC():
     
 class Evaluate_BERT_MRC():
     
-    def __init__(self, model_path, model_name, batch_loader):
+    def __init__(self, out_path,  model_path, model_name, batch_loader):
         super().__init__()
+        self.out_path = out_path
         self.model_path = model_path
         self.model_name = model_name
         self.batch_loader = batch_loader
@@ -213,20 +221,27 @@ class Evaluate_BERT_MRC():
         
     def run(self):
         ## ------------------------------------- Helper functions ------------------------------------------------------------##
+        def write_data_to_pickle(data, file_name, path):
+            with open(path+file_name, 'wb') as f:
+                pickle.dump(data, f)
         ## ------------------------------------- Main Execution ------------------------------------------------------------##
         
         ## initializing model
-        model = torch.load(self.model_path+self.model_name)
-        
         device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+        model = torch.load(self.model_path+self.model_name)
+
         model.to(device)
         model.eval()
         
         ## evaluating
-        acc = []
-        dump_count = 0
+        # start_acc = []
+        # end_acc = []
+        # total_acc = []
+        # dump_count = 0
         eval_data = []
-        for loader in self.batch_loader:
+        for pos, loader in enumerate(self.batch_loader):
+            print(f'Working on Batch {pos+1}...')
             for batch in loader:
                 with torch.no_grad():
                     input_ids = batch['input_ids'].to(device)
@@ -240,12 +255,27 @@ class Evaluate_BERT_MRC():
                     start_pred = torch.argmax(outputs['start_logits'], dim=1)
                     end_pred = torch.argmax(outputs['end_logits'], dim=1)
 
-                    # calculate accuracy 
-                    acc.append(((start_pred == start_true).sum()/len(start_pred)).item())
-                    acc.append(((end_pred == end_true).sum()/len(end_pred)).item())
-                    eval_data.append( [start_pred, start_true, end_pred, end_true])
+#                     # calculate accuracy 
+#                     acc_start = ((start_pred == start_true).sum()/len(start_pred)).item()
+#                     start_acc.append(acc_start)
+#                     total_acc.append(acc_start)
+#                     acc_end = ((end_pred == end_true).sum()/len(end_pred)).item()
+#                     end_acc.append(acc_end)
+#                     total_acc.append(acc_end)
+            
+                    eval_data.append( [input_ids, start_pred, start_true, end_pred, end_true])
+    
+        ## creating dataframe
+        df = pd.DataFrame(eval_data, columns=['input_id', 'start_pred', 'start_true', 'end_pred', 'end_true'])
+        write_data_to_pickle(df, 'BERT_predicions.pickle', self.out_path)
 
                     
-        # calculate  accuracy in total
-        acc = sum(acc)/len(acc)     
-        return acc ,eval_data
+#         # calculate  accuracy in total
+#         acc_for_start_pos = sum(acc_start)/len(acc_start)
+#         acc_for_end_pos = sum(acc_end)/len(acc_end)    
+#         acc_total = sum(total_acc)/len(total_acc) 
+#         print('Start Acuracy: ', acc_for_start_pos)
+#         print('End Acuracy: ', acc_for_end_pos)
+#         print('Total Acuracy: ', acc_total)
+#         return acc_for_start_pos, acc_for_end_pos, acc_total
+        return True

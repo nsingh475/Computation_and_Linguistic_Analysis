@@ -208,7 +208,7 @@ class Train_BERT_MRC():
         
         return  model, outputs_model
     
-class Evaluate_BERT_MRC():
+class Predict_BERT_MRC():
     
     def __init__(self, out_path,  model_path, model_name, batch_loader):
         super().__init__()
@@ -217,8 +217,7 @@ class Evaluate_BERT_MRC():
         self.model_name = model_name
         self.batch_loader = batch_loader
 
-
-        
+      
     def run(self):
         ## ------------------------------------- Helper functions ------------------------------------------------------------##
         def write_data_to_pickle(data, file_name, path):
@@ -226,19 +225,15 @@ class Evaluate_BERT_MRC():
                 pickle.dump(data, f)
         ## ------------------------------------- Main Execution ------------------------------------------------------------##
         
-        ## initializing model
+        ## loading model
+        print('Loading model...')
         device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
         model = torch.load(self.model_path+self.model_name)
-
         model.to(device)
         model.eval()
         
-        ## evaluating
-        # start_acc = []
-        # end_acc = []
-        # total_acc = []
-        # dump_count = 0
+        ## predicting
+        print('Predicting...')
         eval_data = []
         for pos, loader in enumerate(self.batch_loader):
             print(f'Working on Batch {pos+1}...')
@@ -254,28 +249,51 @@ class Evaluate_BERT_MRC():
                     # get top prediction with argmax
                     start_pred = torch.argmax(outputs['start_logits'], dim=1)
                     end_pred = torch.argmax(outputs['end_logits'], dim=1)
-
-#                     # calculate accuracy 
-#                     acc_start = ((start_pred == start_true).sum()/len(start_pred)).item()
-#                     start_acc.append(acc_start)
-#                     total_acc.append(acc_start)
-#                     acc_end = ((end_pred == end_true).sum()/len(end_pred)).item()
-#                     end_acc.append(acc_end)
-#                     total_acc.append(acc_end)
             
                     eval_data.append( [input_ids, start_pred, start_true, end_pred, end_true])
     
         ## creating dataframe
+        print('Writing Prediction file...')
         df = pd.DataFrame(eval_data, columns=['input_id', 'start_pred', 'start_true', 'end_pred', 'end_true'])
         write_data_to_pickle(df, 'BERT_predicions.pickle', self.out_path)
 
-                    
-#         # calculate  accuracy in total
-#         acc_for_start_pos = sum(acc_start)/len(acc_start)
-#         acc_for_end_pos = sum(acc_end)/len(acc_end)    
-#         acc_total = sum(total_acc)/len(total_acc) 
-#         print('Start Acuracy: ', acc_for_start_pos)
-#         print('End Acuracy: ', acc_for_end_pos)
-#         print('Total Acuracy: ', acc_total)
-#         return acc_for_start_pos, acc_for_end_pos, acc_total
         return True
+
+
+class Evaluate_BERT_MRC():
+    
+    def __init__(self, out_path,  file_name):
+        super().__init__()
+        self.out_path = out_path
+        self.file_name = file_name
+
+    def run(self):
+        ## ------------------------------------- Helper functions ------------------------------------------------------------##
+        def get_accuracy_score(gt_pred):
+          acc_score= []
+          for gt, pred in gt_pred:
+              acc = ((pred == gt).sum()/len(pred)).item()
+              acc_score.append(acc)
+          return sum(acc_score)*100/len(acc_score)
+
+        ## ------------------------------------- Main Execution ------------------------------------------------------------##
+        
+        ## reading prediction filefile
+        print('Reading prediction file...')
+        df_pred = pd.read_pickle(self.out_path+self.file_name)
+
+        # colllecting gt and pred value of start and end positions of answer span
+        gt_start = list(df_pred['start_true'].values)
+        gt_end = list(df_pred['end_true'].values)
+        pred_start = list(df_pred['start_pred'].values)
+        pred_end = list(df_pred['end_pred'].values)
+
+        gt_pred_start = zip(gt_start, pred_start)
+        gt_pred_end = zip(gt_end, pred_end)
+
+        ## calculating accuracy
+        print('Calculating Accuracy...')
+        start_acc = get_accuracy_score(gt_pred_start)
+        end_acc = get_accuracy_score(gt_pred_end)
+
+        return round(start_acc, 2), round(end_acc, 2)

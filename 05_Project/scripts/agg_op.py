@@ -18,5 +18,5 @@ eval_agg_op_Obj = Evaluate_AggregateFunction_and_Operator(df)
 agg_acc, op_acc = eval_agg_op_Obj.run() 
 
 print('---------------------- Aggregate Function and Operator Prediction Evaluation Report ----------------------')
-print(f'Agreagte Function prediction accuracy: {agg_acc}')
+print(f'Aggregate Function prediction accuracy: {agg_acc}')
 print(f'Operator prediction Accuracy: {op_acc}')

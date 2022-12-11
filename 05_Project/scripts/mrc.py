@@ -33,9 +33,13 @@ mdl = None
 
 
 for epoch in range(num_epochs):
-    print(f'------ Epoch {epoch+1} ------')
+    if mode == 'train':
+        print(f'------ Epoch {epoch+1} ------')
     for chunk in range(num_chunks):
-        print(f'---- Working with chunk {chunk+1} ----')
+        if mode == 'train':
+            print(f'---- Working with chunk {chunk+1} ----')
+        else:
+            print('Loading Batch encoding...')
         encoding_file = f'batch_encoding_{chunk+1}.pickle'
         batch_encoding = pd.read_pickle(enc_path+encoding_file)
         batch_loader = []
@@ -47,6 +51,15 @@ for epoch in range(num_epochs):
         if mode == 'train':  ## training BERT based MRC
             BERT_MRC_obj = Train_BERT_MRC(model_path, batch_loader, freeze_layer_count, model_name, save_model_name, lr, iterations_before_saving_model, mdl, load_mdl_flag)
             mdl, out_model = BERT_MRC_obj.run()
+        
         else:  ## evaluating / testing MRC
-            BERT_MRC_obj = Evaluate_BERT_MRC(out_path, model_path, save_model_name, batch_loader)
+            BERT_MRC_obj = Predict_BERT_MRC(out_path, model_path, save_model_name, batch_loader)
             result = BERT_MRC_obj.run()
+
+            file_name = 'BERT_predicions.pickle'
+            Eval_BERT_MRC_obj = Evaluate_BERT_MRC(out_path,  file_name)
+            start_acc, end_acc = Eval_BERT_MRC_obj.run()
+
+            print('------------------------------------------ BERT MRC Evaluation Report ------------------------------------------')
+            print(f'Accuracy in predicting start of answer span: {start_acc}')
+            print(f'Accuracy in predicting end of answer span: {end_acc}')
